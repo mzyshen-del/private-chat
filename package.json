@@ -1,15 +1,19 @@
-﻿{
+{
   "name": "private-chat-app",
   "version": "1.0.0",
   "private": true,
-  "description": "Shareable real-time chat with persistent history",
+  "description": "Invite-link real-time chat demo with scoped room access",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "online": "powershell -ExecutionPolicy Bypass -File ./deploy-online.ps1"
+    "online": "powershell -ExecutionPolicy Bypass -File ./deploy-online.ps1",
+    "test": "node --test tests/*.test.cjs"
   },
   "dependencies": {
     "express": "^4.21.2",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.4"
   }
 }

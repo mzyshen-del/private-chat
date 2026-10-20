@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
@@ -80,6 +80,8 @@
       color: var(--text);
       border: 1px solid var(--line);
     }
+
+    .notice { margin: 0; color: #8a4b00; font-size: 12px; line-height: 1.5; }
 
     .status {
       padding: 8px 14px;
@@ -174,24 +176,25 @@
 <body>
   <div class="app">
     <section class="top">
-      <div style="font-weight:700;">私域实时聊天（可分享链接）</div>
+      <div style="font-weight:700;">邀请链接聊天室</div>
+      <p class="notice">持有完整邀请链接的人可读取房间历史。此演示不适合敏感信息。</p>
       <div class="row">
-        <input id="nameInput" placeholder="你的昵称" maxlength="24" />
-        <input id="roomInput" placeholder="房间号（例如：vip-2026）" maxlength="40" />
+        <input aria-label="你的昵称" id="nameInput" placeholder="你的昵称" maxlength="24" />
+        <input aria-label="房间号" id="roomInput" placeholder="房间号（由创建房间生成）" readonly />
         <button id="connectBtn" type="button">进入聊天</button>
       </div>
       <div class="row">
-        <button id="createRoomBtn" class="secondary" type="button">随机房间</button>
+        <button id="createRoomBtn" class="secondary" type="button">创建房间</button>
         <button id="copyLinkBtn" class="secondary" type="button">复制邀请链接</button>
         <button id="clearBtn" class="secondary" type="button">清空当前输入</button>
       </div>
     </section>
 
-    <div class="status" id="status">未连接</div>
+    <div class="status" id="status" role="status" aria-live="polite">创建房间或打开邀请链接后进入聊天。持有邀请链接的人可读取房间历史；请勿分享敏感信息。</div>
     <section class="messages" id="messages"></section>
 
     <form class="composer" id="composer">
-      <textarea id="textInput" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
+      <textarea aria-label="消息内容" id="textInput" maxlength="2000" placeholder="输入消息，Enter 发送，Shift+Enter 换行"></textarea>
       <button type="submit">发送</button>
     </form>
   </div>
@@ -212,10 +215,13 @@
     const socket = io();
     let connectedRoom = "";
     let connectedName = "";
+    let accessKey = "";
 
     const savedName = localStorage.getItem("chat_name") || "";
-    const params = new URLSearchParams(location.search);
-    const roomFromUrl = params.get("room") || "";
+    const invite = new URLSearchParams(location.hash.slice(1));
+    const roomFromUrl = invite.get("room") || "";
+    accessKey = invite.get("key") || "";
+
 
     nameInput.value = savedName;
     roomInput.value = roomFromUrl;
@@ -252,46 +258,53 @@
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    function randomRoom() {
-      return `room-${Math.random().toString(36).slice(2, 8)}`;
+    function inviteLink(roomId) {
+      return `${location.origin}${location.pathname}#room=${encodeURIComponent(roomId)}&key=${encodeURIComponent(accessKey)}`;
     }
 
-    connectBtn.addEventListener("click", () => {
+    function joinRoom() {
       const roomId = roomInput.value.trim().toLowerCase();
       const userName = nameInput.value.trim();
-      if (!roomId || !userName) {
-        setStatus("请先输入昵称和房间号");
+      if (!roomId || !userName || !accessKey) {
+        setStatus("请先创建房间或打开邀请链接，并填写昵称");
         return;
       }
-
-      localStorage.setItem("chat_name", userName);
-      const nextUrl = `${location.pathname}?room=${encodeURIComponent(roomId)}`;
-      history.replaceState(null, "", nextUrl);
-      messagesEl.innerHTML = "";
-
-      socket.emit("join_room", { roomId, userName }, (res) => {
+      socket.emit("join_room", { roomId, userName, accessKey }, (res) => {
         if (!res || !res.ok) {
           setStatus((res && res.error) || "进入房间失败");
           return;
         }
         connectedRoom = roomId;
         connectedName = userName;
-        setStatus(`已进入房间 ${roomId}`);
+        localStorage.setItem("chat_name", userName);
+        messagesEl.innerHTML = "";
         (res.history || []).forEach(msg => renderMessage(msg, msg.from === connectedName));
+        setStatus(`已进入房间 ${roomId}`);
       });
-    });
+    }
+
+    connectBtn.addEventListener("click", joinRoom);
 
     createRoomBtn.addEventListener("click", () => {
-      roomInput.value = randomRoom();
+      socket.emit("create_room", (res) => {
+        if (!res || !res.ok) return setStatus((res && res.error) || "创建房间失败");
+        connectedRoom = "";
+        connectedName = "";
+        messagesEl.innerHTML = "";
+        roomInput.value = res.roomId;
+        accessKey = res.accessKey;
+        history.replaceState(null, "", inviteLink(res.roomId));
+        setStatus("房间已创建。填写昵称进入聊天，并复制邀请链接发给对方。");
+      });
     });
 
     copyLinkBtn.addEventListener("click", async () => {
       const roomId = roomInput.value.trim().toLowerCase();
-      if (!roomId) {
-        setStatus("先填写房间号再复制链接");
+      if (!roomId || !accessKey) {
+        setStatus("请先创建房间或打开邀请链接");
         return;
       }
-      const link = `${location.origin}${location.pathname}?room=${encodeURIComponent(roomId)}`;
+      const link = inviteLink(roomId);
       try {
         await navigator.clipboard.writeText(link);
         setStatus("邀请链接已复制，发给聊天对象即可");
@@ -303,6 +316,13 @@
     clearBtn.addEventListener("click", () => {
       nameInput.value = "";
       roomInput.value = "";
+      accessKey = "";
+      history.replaceState(null, "", location.pathname);
+      connectedRoom = "";
+      connectedName = "";
+      socket.disconnect();
+      socket.connect();
+      messagesEl.innerHTML = "";
       setStatus("已清空输入");
     });
 
@@ -316,11 +336,9 @@
       if (!text) return;
 
       socket.emit("send_message", { text }, (res) => {
-        if (!res || !res.ok) {
-          setStatus((res && res.error) || "发送失败");
-        }
+        if (!res || !res.ok) setStatus((res && res.error) || "发送失败");
+        else textInput.value = "";
       });
-      textInput.value = "";
     });
 
     textInput.addEventListener("keydown", (event) => {
@@ -339,7 +357,8 @@
     });
 
     socket.on("connect", () => {
-      setStatus("服务器已连接，请输入昵称和房间号");
+      if (connectedRoom && connectedName) joinRoom();
+      else setStatus("服务器已连接，请创建房间或打开邀请链接");
     });
 
     socket.on("disconnect", () => {

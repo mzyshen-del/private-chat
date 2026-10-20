@@ -1,21 +1,31 @@
-﻿# One-Click Online
+# 部署与演示
 
-## 1. 一键启动
-双击 `deploy-online.bat`
+## 本地运行
 
-脚本会自动做这几件事：
-- 检查 `node` / `npm`
-- 执行 `npm install`
-- 自动下载 `cloudflared.exe`（首次）
-- 启动聊天服务 `server.js`
-- 生成一个公网链接（`https://xxxx.trycloudflare.com`）
+```powershell
+npm ci
+npm start
+```
 
-把这个公网链接发给聊天对象，对方打开即可进入聊天。
+访问 `http://localhost:3000/health` 可检查服务。运行 `npm test` 执行 Socket.IO 流程测试。
 
-## 2. 聊天记录存储
-聊天记录会写入项目根目录的 `chat-data.json`。
+## Windows 临时公网演示
 
-## 3. 注意
-- 你的电脑需要保持开机，且脚本窗口不要关闭。
-- 如果关闭窗口或断网，公网链接会失效。
-- 重新一键启动会生成新的临时公网链接。
+双击 `deploy-online.bat`，或运行：
+
+```powershell
+.\deploy-online.ps1 -Port 3000
+```
+
+脚本检查 Node.js 和 npm、执行 `npm ci`、首次下载 Cloudflare cloudflared、启动本地服务，并生成临时 `trycloudflare.com` 链接。电脑、脚本和隧道必须保持运行；重启后链接会改变。此方式只适合短时演示。
+
+## 容器部署
+
+```powershell
+docker build -t invite-link-chat .
+docker run --rm -p 3000:3000 invite-link-chat
+```
+
+容器平台需要支持 WebSocket。应用监听平台提供的 `PORT` 环境变量。当前记录保存在 `chat-data.json`，容器临时磁盘重建后可能丢失；如需长期保存，请挂载持久化目录并设置 `CHAT_DATA_FILE`，或改用数据库。多实例部署不能共用当前 JSON 存储。
+
+部署时不要把 `chat-data.json`、邀请链接或其他真实聊天资料提交到 Git。此项目没有端到端加密，也没有账号身份验证；公开演示请使用虚构内容。
