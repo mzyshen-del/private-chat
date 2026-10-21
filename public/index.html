@@ -180,7 +180,7 @@
       <p class="notice">持有完整邀请链接的人可读取房间历史。此演示不适合敏感信息。</p>
       <div class="row">
         <input aria-label="你的昵称" id="nameInput" placeholder="你的昵称" maxlength="24" />
-        <input aria-label="房间号" id="roomInput" placeholder="房间号（由创建房间生成）" readonly />
+        <input aria-label="完整邀请链接" id="roomInput" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="粘贴完整邀请链接" />
         <button id="connectBtn" type="button">进入聊天</button>
       </div>
       <div class="row">
@@ -188,6 +188,7 @@
         <button id="copyLinkBtn" class="secondary" type="button">复制邀请链接</button>
         <button id="clearBtn" class="secondary" type="button">清空当前输入</button>
       </div>
+      <p class="notice">手机可直接打开邀请链接，或把完整链接粘贴到上方。单独房间号无法加入。</p>
     </section>
 
     <div class="status" id="status" role="status" aria-live="polite">创建房间或打开邀请链接后进入聊天。持有邀请链接的人可读取房间历史；请勿分享敏感信息。</div>
@@ -215,16 +216,11 @@
     const socket = io();
     let connectedRoom = "";
     let connectedName = "";
-    let accessKey = "";
+    let activeInvite = null;
 
     const savedName = localStorage.getItem("chat_name") || "";
-    const invite = new URLSearchParams(location.hash.slice(1));
-    const roomFromUrl = invite.get("room") || "";
-    accessKey = invite.get("key") || "";
-
-
     nameInput.value = savedName;
-    roomInput.value = roomFromUrl;
+    if (location.hash) roomInput.value = location.href;
 
     function setStatus(text) {
       statusEl.textContent = text;
@@ -258,17 +254,36 @@
       messagesEl.scrollTop = messagesEl.scrollHeight;
     }
 
-    function inviteLink(roomId) {
+    function inviteLink(roomId, accessKey) {
       return `${location.origin}${location.pathname}#room=${encodeURIComponent(roomId)}&key=${encodeURIComponent(accessKey)}`;
     }
 
-    function joinRoom() {
-      const roomId = roomInput.value.trim().toLowerCase();
+    function parseInvite(value) {
+      try {
+        const url = new URL(value.trim());
+        if (url.origin !== location.origin || url.pathname !== location.pathname) return null;
+        const params = new URLSearchParams(url.hash.slice(1));
+        const roomId = params.get("room") || "";
+        const accessKey = params.get("key") || "";
+        if (!/^room-[a-f0-9]{32}$/.test(roomId) || !/^[a-f0-9]{64}$/.test(accessKey)) return null;
+        return { roomId, accessKey };
+      } catch (_err) {
+        return null;
+      }
+    }
+
+    function joinRoom(reconnecting = false) {
+      const selectedInvite = reconnecting ? activeInvite : parseInvite(roomInput.value);
       const userName = nameInput.value.trim();
-      if (!roomId || !userName || !accessKey) {
-        setStatus("请先创建房间或打开邀请链接，并填写昵称");
+      if (!selectedInvite) {
+        setStatus("请粘贴完整邀请链接；单独房间号无法加入");
         return;
       }
+      if (!userName) {
+        setStatus("请填写昵称");
+        return;
+      }
+      const { roomId, accessKey } = selectedInvite;
       socket.emit("join_room", { roomId, userName, accessKey }, (res) => {
         if (!res || !res.ok) {
           setStatus((res && res.error) || "进入房间失败");
@@ -276,6 +291,10 @@
         }
         connectedRoom = roomId;
         connectedName = userName;
+        activeInvite = selectedInvite;
+        const link = inviteLink(roomId, accessKey);
+        roomInput.value = link;
+        history.replaceState(null, "", link);
         localStorage.setItem("chat_name", userName);
         messagesEl.innerHTML = "";
         (res.history || []).forEach(msg => renderMessage(msg, msg.from === connectedName));
@@ -283,7 +302,7 @@
       });
     }
 
-    connectBtn.addEventListener("click", joinRoom);
+    connectBtn.addEventListener("click", () => joinRoom());
 
     createRoomBtn.addEventListener("click", () => {
       socket.emit("create_room", (res) => {
@@ -291,20 +310,20 @@
         connectedRoom = "";
         connectedName = "";
         messagesEl.innerHTML = "";
-        roomInput.value = res.roomId;
-        accessKey = res.accessKey;
-        history.replaceState(null, "", inviteLink(res.roomId));
+        activeInvite = null;
+        roomInput.value = inviteLink(res.roomId, res.accessKey);
+        history.replaceState(null, "", roomInput.value);
         setStatus("房间已创建。填写昵称进入聊天，并复制邀请链接发给对方。");
       });
     });
 
     copyLinkBtn.addEventListener("click", async () => {
-      const roomId = roomInput.value.trim().toLowerCase();
-      if (!roomId || !accessKey) {
-        setStatus("请先创建房间或打开邀请链接");
+      const invite = parseInvite(roomInput.value);
+      if (!invite) {
+        setStatus("请先创建房间或粘贴完整邀请链接");
         return;
       }
-      const link = inviteLink(roomId);
+      const link = inviteLink(invite.roomId, invite.accessKey);
       try {
         await navigator.clipboard.writeText(link);
         setStatus("邀请链接已复制，发给聊天对象即可");
@@ -316,7 +335,7 @@
     clearBtn.addEventListener("click", () => {
       nameInput.value = "";
       roomInput.value = "";
-      accessKey = "";
+      activeInvite = null;
       history.replaceState(null, "", location.pathname);
       connectedRoom = "";
       connectedName = "";
@@ -357,7 +376,7 @@
     });
 
     socket.on("connect", () => {
-      if (connectedRoom && connectedName) joinRoom();
+      if (connectedRoom && connectedName && activeInvite) joinRoom(true);
       else setStatus("服务器已连接，请创建房间或打开邀请链接");
     });
 
