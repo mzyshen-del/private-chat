@@ -3,9 +3,9 @@
 ## 当前服务
 
 - 在线地址：https://private-chat-demo-b68g.onrender.com
-- Render：Free Web Service，Blueprint 管理，部署提交 `e908169`。
+- Render：Free Web Service，Blueprint 管理；线上已包含手机端邀请链接输入修复。
 - 2026-10-21 已从公网验证：首页和 `/health` 返回 200；远程 WebSocket 建房、错误邀请拒绝、两端收发、切换房间隔离与重连通过。
-- 电脑和手机的界面操作仍需项目负责人亲自验收。
+- 项目负责人已确认电脑和手机端均可正常使用。
 
 `render.yaml` 固定了构建、启动和健康检查。Blueprint 将自动部署设为 `off`，以后推送新代码不会自动更新线上服务；需要在 Render 的服务页面使用 **Manual Deploy**，并核对部署提交。
 

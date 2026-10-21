@@ -35,7 +35,7 @@ npm test
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mzyshen-del/private-chat)
 
-本仓库的 `render.yaml` 为 Render 免费 Web Service 配置了 Node 运行环境和 `/health` 健康检查。当前演示地址为 https://private-chat-demo-b68g.onrender.com 。免费服务在闲置后会休眠，首次重新访问需要等待唤醒；内存中的消息会清空，邀请链接仍可重新进入房间。2026-10-21 已在线验证：首页与健康检查返回 200，建房、错误凭证拒绝、两端收发、房间隔离与重连通过。电脑及手机上的界面体验需另行人工验收。详见 [部署与双设备验收](DEPLOY.md) 和 [Render 免费服务限制](https://render.com/docs/free)。
+本仓库的 `render.yaml` 为 Render 免费 Web Service 配置了 Node 运行环境和 `/health` 健康检查。当前演示地址为 https://private-chat-demo-b68g.onrender.com 。免费服务在闲置后会休眠，首次重新访问需要等待唤醒；内存中的消息会清空，邀请链接仍可重新进入房间。2026-10-21 已在线验证：首页与健康检查返回 200，建房、错误凭证拒绝、两端收发、房间隔离与重连通过；项目负责人也确认手机和电脑端均可正常使用，包括手机端粘贴完整邀请链接。详见 [部署与双设备验收](DEPLOY.md) 和 [Render 免费服务限制](https://render.com/docs/free)。
 
 ## 访问与隐私边界
 
