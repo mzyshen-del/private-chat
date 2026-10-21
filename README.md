@@ -2,6 +2,8 @@
 
 一个基于 Express 和 Socket.IO 的实时聊天室演示。填写昵称、创建房间、复制邀请链接；对方打开链接后填写昵称即可进入同一房间。
 
+**在线演示：** https://private-chat-demo-b68g.onrender.com
+
 > 这是作品集演示，不提供账号密码登录、端到端加密或实名身份验证。请勿传输敏感信息。
 
 ## 功能
@@ -33,7 +35,7 @@ npm test
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/mzyshen-del/private-chat)
 
-本仓库的 `render.yaml` 为 Render 免费 Web Service 配置了 Node 运行环境和 `/health` 健康检查。部署后会得到固定的 `onrender.com` 网址。免费服务在闲置后会休眠，首次重新访问需要等待唤醒；内存中的消息会清空，邀请链接仍可重新进入房间。详见 [部署与双设备验收](DEPLOY.md) 和 [Render 免费服务限制](https://render.com/docs/free)。
+本仓库的 `render.yaml` 为 Render 免费 Web Service 配置了 Node 运行环境和 `/health` 健康检查。当前演示地址为 https://private-chat-demo-b68g.onrender.com 。免费服务在闲置后会休眠，首次重新访问需要等待唤醒；内存中的消息会清空，邀请链接仍可重新进入房间。2026-10-21 已在线验证：首页与健康检查返回 200，建房、错误凭证拒绝、两端收发、房间隔离与重连通过。电脑及手机上的界面体验需另行人工验收。详见 [部署与双设备验收](DEPLOY.md) 和 [Render 免费服务限制](https://render.com/docs/free)。
 
 ## 访问与隐私边界
 
